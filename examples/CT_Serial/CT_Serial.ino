@@ -14,7 +14,7 @@
 const uint8_t ctChannel(0);                 // adc channel
 const float ctRatio(1000);                  // current transformer winding ratio
 const float rBurden(200);                   // current transformer burden resistor value
-const float vcc(5.120);                     // adjust to actual value for best accuracy
+const float vcc(5.070);                     // adjust to actual value for best accuracy
 const uint32_t MS_BETWEEN_SAMPLES(5000);    // milliseconds
 const int32_t BAUD_RATE(115200);
 
@@ -31,7 +31,7 @@ void loop()
 {
     uint32_t msStart = millis();
     float i0 = ct0.read();
-    Serial << millis() << ' ' << _FLOAT(i0, 3) << F("A\n");
+    Serial << millis() << ' ' << _FLOAT(i0, 3) << F(" A\n");
     while (millis() - msStart < MS_BETWEEN_SAMPLES);  // wait to start next measurement
 }
 

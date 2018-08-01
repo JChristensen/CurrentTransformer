@@ -43,8 +43,8 @@ The constructor defines a CurrentTransformer object.
 ##### Syntax
 `CurrentTransformer(channel, ratio, burden, vcc, freq);`
 ##### Required parameters
-**channel:** ADC channel number that the current transformer is connected to. (Arduino pin numbers can also be used, i.e. A0-A5). *(uint8_t)*  
-**ratio:** Secondary:Primary turns ratio for the current transformer. *(float)*
+**channel:** ADC channel number that the current transformer is connected to. (Arduino pin numbers can also be used, e.g. A0-A5). *(uint8_t)*  
+**ratio:** Secondary:Primary turns ratio for the current transformer. *(float)*  
 **burden:** Current transformer burden resistor value in ohms. *(float)*
 ##### Optional parameters
 **vcc:** Microcontroller supply voltage. For best accuracy, measure the actual microcontroller supply voltage and provide it using this parameter. Defaults to 5.0V if not given. *(float)*  

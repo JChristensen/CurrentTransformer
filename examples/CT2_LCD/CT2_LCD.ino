@@ -3,28 +3,36 @@
 // Copyright (C) 2018 by Jack Christensen and licensed under
 // GNU GPL v3.0, https://www.gnu.org/licenses/gpl.html
 //
-// Example sketch to read two current transformers every five seconds
-// and print the measurements to Serial.
-// Tested with TA17L-03 current transformers (10A max), Arduino Uno,
+// Example sketch to read two current transformers periodically
+// and display the measurement on a serial (I2C) LCD display.
+// Tested with TA17L-03 current transformer (10A max), Arduino Uno,
 // Arduino v1.8.5.
 
 #include <CurrentTransformer.h>             // https://github.com/JChristensen/CurrentTransformer
 #include <Streaming.h>                      // http://arduiniana.org/libraries/streaming/
+#include <LiquidTWI.h>                 //http://forums.adafruit.com/viewtopic.php?t=21586
+// or http://dl.dropboxusercontent.com/u/35284720/postfiles/LiquidTWI-1.5.1.zip
 
+const uint8_t ctChannel0(0);                // adc channel for ct-0
+const uint8_t ctChannel1(1);                // adc channel for ct-1
 const float ctRatio(1000);                  // current transformer winding ratio
 const float rBurden(200);                   // current transformer burden resistor value
 const float vcc(5.070);                     // adjust to actual value for best accuracy
-const uint32_t MS_BETWEEN_SAMPLES(5000);    // milliseconds
+const uint32_t MS_BETWEEN_SAMPLES(1000);    // milliseconds
 const int32_t BAUD_RATE(115200);
 
-CurrentTransformer ct0(A0, ctRatio, rBurden, vcc);
-CurrentTransformer ct1(A1, ctRatio, rBurden, vcc);
+// object definitions
+CurrentTransformer ct0(ctChannel0, ctRatio, rBurden, vcc);
+CurrentTransformer ct1(ctChannel1, ctRatio, rBurden, vcc);
+LiquidTWI lcd(0); //i2c address 0 (0x20)
 
 void setup()
 {
     delay(1000);
     Serial.begin(BAUD_RATE);
     ct0.begin();
+    lcd.begin(16, 2);
+    lcd.clear();
 }
 
 void loop()
@@ -33,6 +41,10 @@ void loop()
     float i0 = ct0.read();
     float i1 = ct1.read();
     Serial << millis() << F("  ") << _FLOAT(i0, 3) << F(" A  ") << _FLOAT(i1, 3) << F(" A\n");
+    lcd.setCursor(0, 0);
+    lcd << F("CT-") << ctChannel0 << ' ' << _FLOAT(i0, 3) << F(" AMP");
+    lcd.setCursor(0, 1);
+    lcd << F("CT-") << ctChannel1 << ' ' << _FLOAT(i1, 3) << F(" AMP");
     while (millis() - msStart < MS_BETWEEN_SAMPLES);  // wait to start next measurement
 }
 
