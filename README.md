@@ -25,6 +25,7 @@ This library is specific to the AVR microcontroller architecture and will not wo
 The TA17L-03 current transformer is rated at 10A maximum and has a 1000:1 turns ratio. A 200Ω burden resistor is recommended. A 10A RMS current in the primary will generate a 10mA current in the secondary and therefore 2V across the burden resistor. However the peak voltage will then be √2 * 2V = ±2.8V (assuming a sine wave) which exceeds the 2.5V DC bias provided by the circuit below. Therefore the measured current should be limited to about 8.5A RMS (giving ±2.4V P-P) or perhaps a smaller burden resistor could be used if larger currents need to be measured.
 
 ## Typical Circuit
+![](https://raw.githubusercontent.com/JChristensen/CurrentTransformer/master/typical-circuit.png)
 
 ## Enumeration
 ### ctFreq_t
