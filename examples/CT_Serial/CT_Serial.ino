@@ -4,34 +4,35 @@
 // GNU GPL v3.0, https://www.gnu.org/licenses/gpl.html
 //
 // Example sketch to read a current transformer every five seconds
-// and print the measurement to Serial.
-// Tested with TA17L-03 current transformer (10A max), Arduino Uno,
+// and print the measurements to Serial.
+// Tested with TA17L-03 current transformers (10A max), Arduino Uno,
 // Arduino v1.8.5.
 
 #include <CurrentTransformer.h>             // https://github.com/JChristensen/CurrentTransformer
 #include <Streaming.h>                      // http://arduiniana.org/libraries/streaming/
 
-const uint8_t ctChannel(0);                 // adc channel
 const float ctRatio(1000);                  // current transformer winding ratio
 const float rBurden(200);                   // current transformer burden resistor value
 const float vcc(5.070);                     // adjust to actual value for best accuracy
 const uint32_t MS_BETWEEN_SAMPLES(5000);    // milliseconds
 const int32_t BAUD_RATE(115200);
 
-CurrentTransformer ct0(ctChannel, ctRatio, rBurden, vcc);
+CT_Sensor ct0(A0, ctRatio, rBurden);
+CT_Control ct;
 
 void setup()
 {
     delay(1000);
     Serial.begin(BAUD_RATE);
-    ct0.begin();
+    ct.begin(vcc);
 }
 
 void loop()
 {
     uint32_t msStart = millis();
-    float i0 = ct0.read();
-    Serial << millis() << ' ' << _FLOAT(i0, 3) << F(" A\n");
+    ct.read(&ct0);
+    float i0 = ct0.amps();
+    Serial << millis() << F("  ") << _FLOAT(i0, 3) << F(" A\n");
     while (millis() - msStart < MS_BETWEEN_SAMPLES);  // wait to start next measurement
 }
 

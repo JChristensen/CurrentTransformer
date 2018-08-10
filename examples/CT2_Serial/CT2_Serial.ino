@@ -17,21 +17,23 @@ const float vcc(5.070);                     // adjust to actual value for best a
 const uint32_t MS_BETWEEN_SAMPLES(5000);    // milliseconds
 const int32_t BAUD_RATE(115200);
 
-CurrentTransformer ct0(A0, ctRatio, rBurden, vcc);
-CurrentTransformer ct1(A1, ctRatio, rBurden, vcc);
+CT_Sensor ct0(A0, ctRatio, rBurden);
+CT_Sensor ct1(A1, ctRatio, rBurden);
+CT_Control ct;
 
 void setup()
 {
     delay(1000);
     Serial.begin(BAUD_RATE);
-    ct0.begin();
+    ct.begin(vcc);
 }
 
 void loop()
 {
     uint32_t msStart = millis();
-    float i0 = ct0.read();
-    float i1 = ct1.read();
+    ct.read(&ct0, &ct1);
+    float i0 = ct0.amps();
+    float i1 = ct1.amps();
     Serial << millis() << F("  ") << _FLOAT(i0, 3) << F(" A  ") << _FLOAT(i1, 3) << F(" A\n");
     while (millis() - msStart < MS_BETWEEN_SAMPLES);  // wait to start next measurement
 }
