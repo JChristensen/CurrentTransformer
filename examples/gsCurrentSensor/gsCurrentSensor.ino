@@ -29,7 +29,7 @@ const time_t SYNC_RETRY_INTERVAL(5*60); // time sync retry interval, sec
 
 //object instantiations
 gsXBee xb;                              // the XBee
-CurrentSensor cs(100);                  // current transformer
+CurrentSensor cs(100);                  // current transformer, 100mA threshold
 
 //time, time zone, etc.
 uint32_t ms;                            // current time from millis()
@@ -186,7 +186,8 @@ void xmit(xbeeReadStatus_t xbStatus)
             payloadInteger(n, cs.nSample);
             payloadInteger(r, cs.nRunning);
             payloadInteger(t, cs.maSum);
-            payloadInteger(m, cs.maMin);
+            // if no current observed, send 0 for the min instead of 999999
+            payloadInteger(m, (cs.maMax == 0 ? 0 : cs.maMin));
             payloadInteger(x, cs.maMax);
             xb.destAddr = coordinator;
             xb.sendData(payload);
@@ -219,7 +220,7 @@ void xmit(xbeeReadStatus_t xbStatus)
                 // suspect that the time sync request arrives too soon and the
                 // base station reads it as the response to the DB command
                 // used to get last hop RSS. was seeing RSS UNEXP RESP messages.
-                delay(50);
+                delay(10);
                 timeSyncRetry += SYNC_RETRY_INTERVAL;
                 xb.destAddr = coordinator;
                 xb.requestTimeSync(utc);

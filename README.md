@@ -40,17 +40,28 @@ Operating frequency for the current transformer.
 ## Constructors
 
 ### CT_Sensor(uint8_t channel, float ratio, float burden)
-##### Description
-Defines a CT_Sensor object. One or more CT_Sensor objects can be defined as needed.
+### CT_Sensor(uint8_t channel, float amps, float volts)
+##### Description 
+Defines a CT_Sensor object. One or more CT_Sensor objects can be defined as needed.  
+The first form is for current transformers with a user-supplied burden resistor. In this case, the turns ratio and the burden resistor value are given.  
+The second form is for current transformers with a built-in burden resistor. These are often specified as the output voltage corresponding to the maximum input current, e.g. 20A/1V.
 ##### Syntax
-`CT_Sensor myCT(channel, ratio, burden);`
+```c++
+CT_Sensor myCT(channel, ratio, burden);
+/* or */
+CT_Sensor myCT(channel, amps, volts);
+```
 ##### Parameters
 **channel:** ADC channel number that the current transformer is connected to. (Arduino pin numbers can also be used, e.g. A0-A5). *(uint8_t)*  
 **ratio:** Secondary-to-primary turns ratio for the current transformer. *(float)*  
-**burden:** Current transformer burden resistor value in ohms. *(float)*
+**burden:** Current transformer burden resistor value in ohms. *(float)*  
+**amps:** Maximum rated current for the current transformer. *(float)*  
+**volts:** Voltage output corresponding to the maximum current input. *(float)*
 ##### Example
 ```c++
-CT_Sensor mySensor(0, 1000, 200);
+CT_Sensor mySensor(0, 1000, 200);   // 1000:1 turns ratio, 200Ω burden resistor
+/* or */
+CT_Sensor mySensor(0, 20, 1);       // 1 volt output at 20 amps (built-in burden resistor)
 ```
 
 ### CT_Control(ctFreq_t freq)
@@ -114,4 +125,19 @@ CT_Control myCtrl(CT_FREQ_50HZ);
 myCtrl.read(&mySensor);
 float rmsCurrent = myCT.read();
 
+```
+### float CT_Control::readVcc()
+##### Description
+Reads the value of the microcontroller's supply voltage and returns it in volts. Call this function only before calling `begin()`, since `begin()` configures the ADC for continuous timer-driven readings. This function is useful for accurately determining the Vcc value to be passed to the `begin()` function.
+##### Syntax
+`myCtrl.readVcc();`
+##### Parameters
+None.
+##### Returns
+Supply voltage in volts *(float)*
+##### Example
+```c++
+CT_Control myCtrl(CT_FREQ_50HZ);
+float vcc = myCtrl.readVcc();
+myCtrl.begin(vcc);
 ```

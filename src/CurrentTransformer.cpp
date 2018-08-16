@@ -87,6 +87,22 @@ void CT_Control::read(CT_Sensor *ct0, CT_Sensor *ct1)
     return;
 }
 
+// read 1.1V reference against AVcc
+// call this function only before calling begin() as the ADC is
+// then automatically triggered by the timer.
+// returns the value of Vcc in volts.
+// from http://code.google.com/p/tinkerit/wiki/SecretVoltmeter
+float CT_Control::readVcc()
+{
+    // set AVcc as reference, 1.1V bandgap reference voltage as input
+    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+    delay(5);                               // Vref settling time
+    ADCSRA |= _BV(ADSC);                    // start conversion
+    loop_until_bit_is_clear(ADCSRA, ADSC);  // wait for it to complete
+    int mv = 1125300L / ADC;                // calculate AVcc in mV (1.1 * 1000 * 1023)
+    return static_cast<float>(mv) / 1000.0;
+}
+
 // adc conversion complete, pass the value back to the main code
 ISR(ADC_vect)
 {

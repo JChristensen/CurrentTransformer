@@ -1,5 +1,5 @@
-#include <CurrentTransformer.h>             // https://github.com/JChristensen/CurrentTransformer
-#include <LiquidTWI.h>                 //http://forums.adafruit.com/viewtopic.php?t=21586
+#include <CurrentTransformer.h>     // https://github.com/JChristensen/CurrentTransformer
+#include <LiquidTWI.h>              // https://forums.adafruit.com/viewtopic.php?t=21586
 
 CT_Sensor ct0(A0, 1000, 200);
 LiquidTWI lcd(0);   //i2c address 0 (0x20)
@@ -11,7 +11,6 @@ class CurrentSensor : public CT_Control
         void begin();
         float sample();
         void clearSampleData();
-        int readVcc();
         
         int nSample;            // number of times CT was read
         int nRunning;           // number of times current was >= threshold value
@@ -29,8 +28,13 @@ CurrentSensor::CurrentSensor(uint32_t threshold) : maThreshold(threshold)
 
 void CurrentSensor::begin()
 {
-    CT_Control::begin(static_cast<float>(readVcc()) / 1000.0);
+    float vcc = readVcc();
+    CT_Control::begin(vcc);
     lcd.begin(16, 2);
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd << F("Vcc = ") << _FLOAT(vcc, 3);
+    delay(1000);
     lcd.clear();
 }
 
@@ -61,18 +65,3 @@ void CurrentSensor::clearSampleData()
     maMax = 0;
     maMin = 999999;
 }
-
-// read 1.1V reference against AVcc
-// from http://code.google.com/p/tinkerit/wiki/SecretVoltmeter
-int CurrentSensor::readVcc()
-{
-    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-    delay(5);                               // Vref settling time
-    ADCSRA |= _BV(ADSC);                    // start conversion
-    loop_until_bit_is_clear(ADCSRA, ADSC);  // wait for it to complete
-    delay(5);
-    ADCSRA |= _BV(ADSC);                    // start conversion
-    loop_until_bit_is_clear(ADCSRA, ADSC);  // wait for it to complete
-    return 1125300L / ADC;                  // calculate AVcc in mV (1.1 * 1000 * 1023)
-}
-
