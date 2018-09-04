@@ -1,4 +1,4 @@
-//print date and time to Serial
+// print date and time to Serial
 void printDateTime(time_t t)
 {
     printDate(t);
@@ -6,7 +6,7 @@ void printDateTime(time_t t)
     Serial << tcr -> abbrev << endl;
 }
 
-//print date to Serial
+// print date to Serial
 void printDate(time_t t)
 {
     Serial << year(t) << '-';
@@ -14,7 +14,7 @@ void printDate(time_t t)
     printI00(day(t), ' ');
 }
 
-//print time to Serial
+// print time to Serial
 void printTime(time_t t)
 {
     printI00(hour(t), ':');
@@ -22,9 +22,9 @@ void printTime(time_t t)
     printI00(second(t), ' ');
 }
 
-//Print an integer in "00" format (with leading zero),
-//followed by a delimiter character to Serial.
-//Input value assumed to be between 0 and 99.
+// Print an integer in "00" format (with leading zero),
+// followed by a delimiter character to Serial.
+// Input value assumed to be between 0 and 99.
 void printI00(int val, char delim)
 {
     if (val < 10) Serial << '0';
@@ -32,7 +32,7 @@ void printI00(int val, char delim)
     return;
 }
 
-//calculate the next time where seconds = 0
+// calculate the next time where seconds = 0
 time_t nextMinute()
 {
     tmElements_t tm;

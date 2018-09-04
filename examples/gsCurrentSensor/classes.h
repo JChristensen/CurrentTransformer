@@ -65,3 +65,4 @@ void CurrentSensor::clearSampleData()
     maMax = 0;
     maMin = 999999;
 }
+

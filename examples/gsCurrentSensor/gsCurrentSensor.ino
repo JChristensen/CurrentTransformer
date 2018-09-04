@@ -19,7 +19,7 @@
 
 const char *sketchVersion = "1.0.0";
 
-//pin definitions and other constants
+// pin definitions and other constants
 const int32_t BAUD_RATE(115200);
 const uint32_t XBEE_TIMEOUT(3000);      // max wait time for ack, ms
 const int SYNC_MINUTE(58);              // hourly time sync minute. sync occurs after regular data
@@ -27,11 +27,11 @@ const int SYNC_MINUTE(58);              // hourly time sync minute. sync occurs 
 const time_t SYNC_INTERVAL(60*60);      // time sync interval, sec
 const time_t SYNC_RETRY_INTERVAL(5*60); // time sync retry interval, sec
 
-//object instantiations
+// object instantiations
 gsXBee xb;                              // the XBee
 CurrentSensor cs(100);                  // current transformer, 100mA threshold
 
-//time, time zone, etc.
+// time, time zone, etc.
 uint32_t ms;                            // current time from millis()
 time_t utc;                             // current utc time
 time_t local;                           // current local time
@@ -44,7 +44,7 @@ Timezone myTZ(myDST, mySTD);
 TimeChangeRule *tcr;                    // pointer to the time change rule, use to get TZ abbrev
 int utcH, utcM, utcS, utcDay, locH, locM, locS, locMon, locDay;     // utc and local time parts
 
-//other global variables
+// other global variables
 time_t nextWebTx;                       // time for next web data transmission
 time_t nextTimeSync;                    // time for next time sync
 time_t timeSyncRetry;                   // for time sync retries 
