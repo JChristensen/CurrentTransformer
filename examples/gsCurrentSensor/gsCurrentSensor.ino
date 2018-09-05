@@ -17,9 +17,15 @@
 #include <XBee.h>               // https://github.com/andrewrapp/xbee-arduino
 #include "classes.h"
 
-const char *sketchVersion = "1.0.0";
+const char *sketchVersion = "1.1.0";
 
 // pin definitions and other constants
+const uint8_t
+    xbeeReset(4),
+    grnLED(11),                         // heartbeat
+    yelLED(12),                         // pump on
+    redLED(13),                         // wait for time sync
+    unusedPins[] = {2, 3, 5, 6, 7, 8, 9, 10, A2, A3};
 const int32_t BAUD_RATE(115200);
 const uint32_t XBEE_TIMEOUT(3000);      // max wait time for ack, ms
 const int SYNC_MINUTE(58);              // hourly time sync minute. sync occurs after regular data
@@ -29,7 +35,8 @@ const time_t SYNC_RETRY_INTERVAL(5*60); // time sync retry interval, sec
 
 // object instantiations
 gsXBee xb;                              // the XBee
-CurrentSensor cs(100);                  // current transformer, 100mA threshold
+CurrentSensor cs(100, yelLED);          // current transformer, 100mA threshold
+heartbeat hbLED(grnLED, 1000);
 
 // time, time zone, etc.
 uint32_t ms;                            // current time from millis()
@@ -54,6 +61,16 @@ void setup()
 {
     Serial.begin(BAUD_RATE);
     Serial << F( "\n" __FILE__ " " __DATE__ " " __TIME__ "\n" );
+    hbLED.begin();
+    pinMode(redLED, OUTPUT);
+    pinMode(yelLED, OUTPUT);
+    pinMode(xbeeReset, OUTPUT);         // drives pin low to reset the XBee
+    delay(10);                          // wait just a bit
+    digitalWrite(xbeeReset, HIGH);
+    // enable pullups on unused pins for noise immunity
+    for ( uint8_t i=0; i<sizeof(unusedPins); ++i )
+        pinMode(unusedPins[i], INPUT_PULLUP);
+            
     setTime(0, 0, 0, 14, 3, 2016);      // set an arbitrary time
     utc = now();
     printTime(utc);
@@ -76,6 +93,7 @@ void loop()
 
     ms = millis();
     xbeeReadStatus_t xbStatus = xb.read();      // check for incoming XBee traffic
+    hbLED.update();
 
     switch (STATE)
     {
@@ -94,6 +112,7 @@ void loop()
         
     case REQ_TIMESYNC:
         STATE = WAIT_TIMESYNC;
+        digitalWrite(redLED, HIGH);
         xb.requestTimeSync(utc);
         break;
 
@@ -107,7 +126,7 @@ void loop()
             nextWebTx = utc - utc % (xb.txInterval * 60) + xb.txOffset * 60 + xb.txSec - xb.txWarmup;
             if ( nextWebTx <= utc + 5 ) nextWebTx += xb.txInterval * 60;
 
-            //calculate time for the first time sync
+            // calculate time for the first time sync
             tmElements_t tm;
             breakTime(utc, tm);
             tm.Minute = SYNC_MINUTE;
@@ -115,7 +134,7 @@ void loop()
             nextTimeSync = makeTime(tm);
             if ( nextTimeSync <= utc ) nextTimeSync += SYNC_INTERVAL;
         }
-        else if (millis() - xb.msTX >= XBEE_TIMEOUT)    //timeout waiting for time sync response
+        else if (millis() - xb.msTX >= XBEE_TIMEOUT)    // timeout waiting for time sync response
         {
             STATE = REQ_TIMESYNC;
         }
@@ -216,6 +235,7 @@ void xmit(xbeeReadStatus_t xbStatus)
     case TX_SEND_SYNC_REQ:
             if ( utc >= nextTimeSync + timeSyncRetry )  // is it time to request a time sync?
             {
+                digitalWrite(redLED, HIGH);
                 // add short delay for debugging.
                 // suspect that the time sync request arrives too soon and the
                 // base station reads it as the response to the DB command
@@ -270,5 +290,6 @@ void processTimeSync(time_t t)
     updateTime();
     while ( nextTimeSync <= utc ) nextTimeSync += SYNC_INTERVAL;
     timeSyncRetry = 0;
+    digitalWrite(redLED, LOW);
 }
 
