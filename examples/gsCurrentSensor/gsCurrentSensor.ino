@@ -17,8 +17,6 @@
 #include <XBee.h>               // https://github.com/andrewrapp/xbee-arduino
 #include "classes.h"
 
-const char *sketchVersion = "1.1.0";
-
 // pin definitions and other constants
 const uint8_t
     xbeeReset(4),
@@ -159,6 +157,8 @@ void loop()
                 nextTimePrint += 60;
                 Serial << millis() << F(" Local: ");
                 printDateTime(local);
+                cs.end();               // stop & restart the current sensor to re-read Vcc
+                cs.restart();
             }
         }
         break;

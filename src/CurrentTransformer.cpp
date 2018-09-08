@@ -25,19 +25,29 @@ CT_Control::CT_Control(ctFreq_t freq)
     m_tcOCR1 = (freq == CT_FREQ_50HZ) ? CT_Control::OCR50 : CT_Control::OCR60;
 }
 
-void CT_Control::begin(float vcc)
+// configure the timer and adc. reads and returns Vcc value in volts.
+float CT_Control::begin()
 {
-    m_vcc = vcc;
+    // read Vcc
+    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);  // default adc configuration
+    ADCSRB = 0;
+    // set AVcc as reference, 1.1V bandgap reference voltage as input
+    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+    delay(10);                              // Vref settling time
+    ADCSRA |= _BV(ADSC);                    // start conversion
+    loop_until_bit_is_clear(ADCSRA, ADSC);  // wait for it to complete
+    int mv = 1125300L / ADC;                // calculate AVcc in mV (1.1 * 1000 * 1023)
+    m_vcc = static_cast<float>(mv) / 1000.0;
     
     // set up the timer
-    TCCR1B = 0;                 // stop the timer
+    TCCR1B = 0;                             // stop the timer
     TCCR1A = 0;
-    TIFR1 = 0xFF;               // ensure all interrupt flags are cleared
-    OCR1A = m_tcOCR1;           // set timer output compare value
+    TIFR1 = 0xFF;                           // ensure all interrupt flags are cleared
+    OCR1A = m_tcOCR1;                       // set timer output compare value
     OCR1B = m_tcOCR1;
     cli();
-    TCNT1 = 0;                  // clear the timer
-    TIMSK1 = _BV(OCIE1B);       // enable timer interrupts
+    TCNT1 = 0;                              // clear the timer
+    TIMSK1 = _BV(OCIE1B);                   // enable timer interrupts
     sei();
     TCCR1B = _BV(WGM12) | _BV(CS10);    // start the timer, ctc mode, prescaler divide by 1
 
@@ -45,6 +55,20 @@ void CT_Control::begin(float vcc)
     ADCSRA  = _BV(ADEN)  | _BV(ADATE) | _BV(ADIE);      // enable ADC, auto trigger, interrupt when conversion complete
     ADCSRA |= _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);     // ADC clock prescaler: divide by 128 (for 125kHz)
     ADCSRB = _BV(ADTS2) | _BV(ADTS0);                   // trigger ADC on Timer/Counter1 Compare Match B    
+
+    return m_vcc;
+}
+
+void CT_Control::end()
+{
+    // reset adc to default configuration (enabled, clock prescaler 128)
+    ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
+    ADCSRB = 0;
+
+    // stop the timer
+    TCCR1B = 0;
+    TCCR1A = 0;
+    TIFR1 = 0xFF;               // ensure all interrupt flags are cleared
 }
 
 void CT_Control::read(CT_Sensor *ct0, CT_Sensor *ct1)
@@ -61,17 +85,13 @@ void CT_Control::read(CT_Sensor *ct0, CT_Sensor *ct1)
         ADMUX = _BV(REFS0) | ct0->m_channel;    // set channel, and AVcc as reference
         while (!adcBusy);                       // wait for next conversion to start
         while (adcBusy);                        // wait for conversion to complete
-        //cli();
         int32_t v0 = adcVal;                    // get the reading, promote to 32 bit
-        //sei();
 
         // read ct1
         ADMUX = _BV(REFS0) | ct1->m_channel;    // set channel, and AVcc as reference
         while (!adcBusy);                       // wait for next conversion to start
         while (adcBusy);                        // wait for conversion to complete
-        //cli();
         int32_t v1 = adcVal;                    // get the reading, promote to 32 bit
-        //sei();
 
         // accumulate the sum of squares,
         // subtract 512 (half the adc range) to remove dc component
@@ -85,22 +105,6 @@ void CT_Control::read(CT_Sensor *ct0, CT_Sensor *ct1)
     ct0->m_amps = ct0->m_ratio * Vrms0 / ct0->m_burden;
     ct1->m_amps = ct1->m_ratio * Vrms1 / ct1->m_burden;
     return;
-}
-
-// read 1.1V reference against AVcc
-// call this function only before calling begin() as the ADC is
-// then automatically triggered by the timer.
-// returns the value of Vcc in volts.
-// from http://code.google.com/p/tinkerit/wiki/SecretVoltmeter
-float CT_Control::readVcc()
-{
-    // set AVcc as reference, 1.1V bandgap reference voltage as input
-    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
-    delay(5);                               // Vref settling time
-    ADCSRA |= _BV(ADSC);                    // start conversion
-    loop_until_bit_is_clear(ADCSRA, ADSC);  // wait for it to complete
-    int mv = 1125300L / ADC;                // calculate AVcc in mV (1.1 * 1000 * 1023)
-    return static_cast<float>(mv) / 1000.0;
 }
 
 // adc conversion complete, pass the value back to the main code

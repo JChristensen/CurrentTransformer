@@ -1,14 +1,64 @@
 #include <CurrentTransformer.h>     // https://github.com/JChristensen/CurrentTransformer
 #include <LiquidTWI.h>              // https://forums.adafruit.com/viewtopic.php?t=21586
+#include <Wire.h>
 
 CT_Sensor ct0(A0, 1000, 200);
-LiquidTWI lcd(0);   //i2c address 0 (0x20)
+
+// An I2C LCD class that doesn't hang if an LCD is not connected.
+// LCD presence is detected when begin() is called. Subsequent calls
+// to clear(), setCursor() and write() communicate to the LCD or not
+// based on the results of the detection in begin().
+
+class OptionalLCD : public LiquidTWI
+{
+    public:
+        OptionalLCD(uint8_t i2cAddr) : LiquidTWI(i2cAddr), m_i2cAddr(i2cAddr + 0x20) {}
+        void begin(uint8_t cols, uint8_t rows, uint8_t charsize = LCD_5x8DOTS);
+        void clear();
+        void setCursor(uint8_t col, uint8_t row);
+        virtual size_t write(uint8_t value);
+        bool isPresent() {return m_lcdPresent;}
+
+    private:
+        uint8_t m_i2cAddr;
+        bool m_lcdPresent;
+};
+
+void OptionalLCD::begin(uint8_t cols, uint8_t rows, uint8_t charsize)
+{
+    Wire.begin();
+    Wire.beginTransmission(m_i2cAddr);
+    uint8_t s = Wire.endTransmission();     // status is zero if successful
+    m_lcdPresent = (s == 0);
+    if (m_lcdPresent) LiquidTWI::begin(cols, rows, charsize);
+}
+
+void OptionalLCD::clear()
+{
+    if (m_lcdPresent) LiquidTWI::clear();
+}
+
+void OptionalLCD::setCursor(uint8_t col, uint8_t row)
+{
+    if (m_lcdPresent) LiquidTWI::setCursor(col, row);
+}
+
+size_t OptionalLCD::write(uint8_t value)
+{
+    if (m_lcdPresent)
+        return LiquidTWI::write(value);
+    else
+        return 0;
+}
+
+OptionalLCD lcd(0);   //i2c address 0 (0x20)
 
 class CurrentSensor : public CT_Control
 {
     public:
         CurrentSensor(uint32_t threshold, int8_t led = -1);
         void begin();
+        void restart();
         float sample();
         void clearSampleData();
         
@@ -29,18 +79,26 @@ CurrentSensor::CurrentSensor(uint32_t threshold, int8_t led) : maThreshold(thres
     clearSampleData();
 }
 
+// configure led and lcd hardware, initialize CT_Control
 void CurrentSensor::begin()
 {
     if (m_led >= 0) pinMode(m_led, OUTPUT);
-    float vcc = readVcc();
-    CT_Control::begin(vcc);
     lcd.begin(16, 2);
+    if (lcd.isPresent())
+        Serial << millis() << F(" LCD detected\n");
+    else
+        Serial << millis() << F(" LCD not present\n");
     lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd << F("Vcc = ") << _FLOAT(vcc, 3);
+    restart();
+}
+
+// initialize CT_Control, display vcc value
+void CurrentSensor::restart()
+{
+    float vcc = CT_Control::begin();
+    lcd.setCursor(0, 1);
+    lcd << F("VCC  " ) << _FLOAT(vcc, 3) << F(" V ");
     Serial << millis() << F(" Vcc = ") << _FLOAT(vcc, 3) << endl;
-    delay(1000);
-    lcd.clear();
 }
 
 // read the ct and collect sample data, display on lcd
@@ -63,7 +121,7 @@ float CurrentSensor::sample()
         if (m_led >= 0) digitalWrite(m_led, LOW);
     }
     lcd.setCursor(0, 0);
-    lcd << F("CT-0 " ) << _FLOAT(a, 3) << F(" AMP ");
+    lcd << F("CT-0 " ) << _FLOAT(a, 3) << F(" A ");
     return a;
 }
 

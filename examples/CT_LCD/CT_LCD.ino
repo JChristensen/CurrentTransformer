@@ -30,9 +30,7 @@ void setup()
     lcd.begin(16, 2);
     lcd.clear();
     delay(1000);
-    float vcc = readVcc() / 1000.0;
-    Serial << millis() << F(" Vcc ") << vcc << endl;
-    ct.begin(vcc);
+    ct.begin();
 }
 
 void loop()

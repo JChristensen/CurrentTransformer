@@ -13,7 +13,6 @@
 
 const float ctRatio(1000);                  // current transformer winding ratio
 const float rBurden(200);                   // current transformer burden resistor value
-const float vcc(5.070);                     // adjust to actual value for best accuracy
 const uint32_t MS_BETWEEN_SAMPLES(5000);    // milliseconds
 const int32_t BAUD_RATE(115200);
 
@@ -24,7 +23,7 @@ void setup()
 {
     delay(1000);
     Serial.begin(BAUD_RATE);
-    ct.begin(vcc);
+    ct.begin();
 }
 
 void loop()
