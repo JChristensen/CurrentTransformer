@@ -36,46 +36,43 @@ gsXBee xb;                              // the XBee
 CurrentSensor cs(100, yelLED);          // current transformer, 100mA threshold
 heartbeat hbLED(grnLED, 1000);
 
-// time, time zone, etc.
-uint32_t ms;                            // current time from millis()
+// variables for time and timing
 time_t utc;                             // current utc time
-time_t local;                           // current local time
 time_t utcStart;                        // sketch start time (actually the first time sync received)
 time_t lastTimeSyncRecd;                // last time sync received
+time_t nextWebTx;                       // time for next web data transmission
+time_t nextTimeSync;                    // time for next time sync
+time_t timeSyncRetry;                   // for time sync retries 
+
 // US Eastern Time Zone (New York, Detroit)
 TimeChangeRule myDST = {"EDT", Second, Sun, Mar, 2, -240};  // Daylight time = UTC - 4 hours
 TimeChangeRule mySTD = {"EST", First, Sun, Nov, 2, -300};   // Standard time = UTC - 5 hours
 Timezone myTZ(myDST, mySTD);
 TimeChangeRule *tcr;                    // pointer to the time change rule, use to get TZ abbrev
-int utcH, utcM, utcS, utcDay, locH, locM, locS, locMon, locDay;     // utc and local time parts
 
 // other global variables
-time_t nextWebTx;                       // time for next web data transmission
-time_t nextTimeSync;                    // time for next time sync
-time_t timeSyncRetry;                   // for time sync retries 
 XBeeAddress64 coordinator(0x0, 0x0);    // coordinator address
 
 void setup()
 {
     Serial.begin(BAUD_RATE);
     Serial << F( "\n" __FILE__ " " __DATE__ " " __TIME__ "\n" );
-    hbLED.begin();
-    pinMode(redLED, OUTPUT);
-    pinMode(yelLED, OUTPUT);
-    pinMode(xbeeReset, OUTPUT);         // drives pin low to reset the XBee
-    delay(10);                          // wait just a bit
-    digitalWrite(xbeeReset, HIGH);
     // enable pullups on unused pins for noise immunity
     for ( uint8_t i=0; i<sizeof(unusedPins); ++i )
         pinMode(unusedPins[i], INPUT_PULLUP);
-            
-    setTime(0, 0, 0, 14, 3, 2016);      // set an arbitrary time
-    utc = now();
-    printTime(utc);
-    Serial << F("UTC ");
-    printDate(utc);
-    Serial << endl;
-    cs.begin();
+
+    pinMode(redLED, OUTPUT);
+    pinMode(yelLED, OUTPUT);
+    hbLED.begin();
+    pinMode(xbeeReset, OUTPUT);         // drives pin low to reset the XBee
+    digitalWrite(redLED, HIGH);         // lamp test
+    digitalWrite(yelLED, HIGH);
+    digitalWrite(grnLED, HIGH);
+    delay(1000);
+    digitalWrite(redLED, LOW);
+    digitalWrite(yelLED, LOW);
+    digitalWrite(grnLED, LOW);
+    digitalWrite(xbeeReset, HIGH);      // let the XBee initialize
 }
 
 //state machine states
@@ -89,7 +86,7 @@ void loop()
 {
     static time_t nextTimePrint;                // next time to print the local time to serial
 
-    ms = millis();
+    utc = now();
     xbeeReadStatus_t xbStatus = xb.read();      // check for incoming XBee traffic
     hbLED.update();
 
@@ -107,10 +104,11 @@ void loop()
             xb.mcuReset(10000);
         }
         break;
-        
+
     case REQ_TIMESYNC:
         STATE = WAIT_TIMESYNC;
         digitalWrite(redLED, HIGH);
+        xb.destAddr = coordinator;
         xb.requestTimeSync(utc);
         break;
 
@@ -120,17 +118,22 @@ void loop()
             STATE = RUN;
             nextTimePrint = nextMinute();
             utcStart = lastTimeSyncRecd;
-            updateTime();
             nextWebTx = utc - utc % (xb.txInterval * 60) + xb.txOffset * 60 + xb.txSec - xb.txWarmup;
             if ( nextWebTx <= utc + 5 ) nextWebTx += xb.txInterval * 60;
 
-            // calculate time for the first time sync
+            // calculate time for next time sync
             tmElements_t tm;
             breakTime(utc, tm);
             tm.Minute = SYNC_MINUTE;
             tm.Second = xb.txSec;
             nextTimeSync = makeTime(tm);
             if ( nextTimeSync <= utc ) nextTimeSync += SYNC_INTERVAL;
+
+            // print the first time sync
+            time_t local = myTZ.toLocal(utc, &tcr);     // TZ adjustment
+            Serial << millis() << ' ';
+            printDateTime(local);
+            cs.begin();
         }
         else if (millis() - xb.msTX >= XBEE_TIMEOUT)    // timeout waiting for time sync response
         {
@@ -139,23 +142,20 @@ void loop()
         break;
 
     case RUN:
-        utc = now();
-
-        // run the transmit state machine
-        xmit(xbStatus);
+        xmit(xbStatus);                 // run the transmit state machine
 
         // once-per-second processing
         static time_t lastUTC;          // last time one-second processing code was executed
         if (utc > lastUTC)
         {
             lastUTC = utc;
-            updateTime();
             cs.sample();
 
             if (utc >= nextTimePrint)   // print time to Serial once per minute
             {
                 nextTimePrint += 60;
-                Serial << millis() << F(" Local: ");
+                time_t local = myTZ.toLocal(utc, &tcr);     // TZ adjustment
+                Serial << millis() << ' ';
                 printDateTime(local);
                 cs.end();               // stop & restart the current sensor to re-read Vcc
                 cs.restart();
@@ -266,29 +266,14 @@ void xmit(xbeeReadStatus_t xbStatus)
     }
 }
 
-// update various time variables
-void updateTime()
-{
-    utc = now();
-    utcH = hour(utc);
-    utcM = minute(utc);
-    utcS = second(utc);
-    utcDay = day(utc);
-    local = myTZ.toLocal(utc, &tcr);    // TZ adjustment
-    locH = hour(local);
-    locM = minute(local);
-    locS = second(local);
-    locMon = month(local);
-    locDay = day(local);
-}
-
 // set time to value received from master clock, update time variables
 void processTimeSync(time_t t)
 {
     setTime(t);
+    utc = now();
+    if (lastTimeSyncRecd == 0) nextTimeSync = utc;
+    while (nextTimeSync <= utc) nextTimeSync += SYNC_INTERVAL;
     lastTimeSyncRecd = t;
-    updateTime();
-    while ( nextTimeSync <= utc ) nextTimeSync += SYNC_INTERVAL;
     timeSyncRetry = 0;
     digitalWrite(redLED, LOW);
 }

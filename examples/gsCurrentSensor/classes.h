@@ -51,7 +51,7 @@ size_t OptionalLCD::write(uint8_t value)
         return 0;
 }
 
-OptionalLCD lcd(0);   //i2c address 0 (0x20)
+OptionalLCD lcd(0);     // i2c address 0 (0x20)
 
 class CurrentSensor : public CT_Control
 {
@@ -98,7 +98,7 @@ void CurrentSensor::restart()
     float vcc = CT_Control::begin();
     lcd.setCursor(0, 1);
     lcd << F("VCC  " ) << _FLOAT(vcc, 3) << F(" V ");
-    Serial << millis() << F(" Vcc = ") << _FLOAT(vcc, 3) << endl;
+    Serial << millis() << F(" Vcc ") << _FLOAT(vcc, 3) << endl;
 }
 
 // read the ct and collect sample data, display on lcd
