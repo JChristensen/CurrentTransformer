@@ -33,7 +33,7 @@ const time_t SYNC_RETRY_INTERVAL(5*60); // time sync retry interval, sec
 
 // object instantiations
 gsXBee xb;                              // the XBee
-CurrentSensor cs(100, yelLED);          // current transformer, 100mA threshold
+CurrentSensor cs(150, yelLED);          // current transformer, 150mA threshold
 heartbeat hbLED(grnLED, 1000);
 
 // variables for time and timing

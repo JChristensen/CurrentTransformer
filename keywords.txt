@@ -2,5 +2,6 @@ CT_Sensor	KEYWORD1
 amps	KEYWORD2
 CT_Control	KEYWORD1
 begin	KEYWORD2
+end	KEYWORD2
 read	KEYWORD2
 

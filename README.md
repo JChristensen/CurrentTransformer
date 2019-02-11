@@ -94,18 +94,32 @@ rmsCurrent = mySensor.amps();
 
 ```
 
-### void CT_Control::begin(float vcc)
+### float CT_Control::begin()
 ##### Description
 Initializes the AVR timer and ADC. (Timer/Counter1 is used to trigger the ADC conversions and so is not available for other purposes.)
 ##### Syntax
 `myCtrl.begin();`
-##### Optional parameter
-**vcc:** Microcontroller supply voltage. For best accuracy, measure the actual microcontroller supply voltage and provide it using this parameter. Defaults to 5.0V if not given. *(float)*  
-##### Returns
+##### Parameters
 None.
+##### Returns
+Microcontroller supply voltage in volts. *(float)*  
 ##### Example
 ```c++
-myCtrl.begin();
+float vcc = myCtrl.begin();
+```
+
+### void CT_Control::end()
+##### Description
+Resets the AVR timer and ADC to default configuration.
+##### Syntax
+`myCtrl.end();`
+##### Parameters
+None.
+##### Returns
+None.  
+##### Example
+```c++
+myCtrl.end();
 ```
 
 ### void CT_Control::read(CT_Sensor *sensor1)
@@ -125,19 +139,4 @@ CT_Control myCtrl(CT_FREQ_50HZ);
 myCtrl.read(&mySensor);
 float rmsCurrent = myCT.read();
 
-```
-### float CT_Control::readVcc()
-##### Description
-Reads the value of the microcontroller's supply voltage and returns it in volts. Call this function only before calling `begin()`, since `begin()` configures the ADC for continuous timer-driven readings. This function is useful for accurately determining the Vcc value to be passed to the `begin()` function.
-##### Syntax
-`myCtrl.readVcc();`
-##### Parameters
-None.
-##### Returns
-Supply voltage in volts *(float)*
-##### Example
-```c++
-CT_Control myCtrl(CT_FREQ_50HZ);
-float vcc = myCtrl.readVcc();
-myCtrl.begin(vcc);
 ```
