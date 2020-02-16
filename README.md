@@ -20,7 +20,7 @@ Since each call to `read()` measures only a single cycle, it may be desirable, d
 
 Because measuring AC causes the current transformer to output positive and negative currents, a DC bias must be applied to ensure that below-ground voltages are not applied to the microcontroller's ADC input. It is also necessary to ensure that peak voltages do not exceed the microcontroller's supply voltage (Vcc). Do the math to ensure that your circuit operates within safe limits; also see the example below.
 
-This library is specific to the AVR microcontroller architecture and will not work on others. Timer/Counter1 is used to trigger the ADC conversions and so is not available for other purposes.
+This library is specific to the AVR microcontroller architecture and will not work on others. Only ATmega328/P, ATmega1280 and ATmega2560 are supported. Timer/Counter1 is used to trigger the ADC conversions and so is not available for other purposes.
 
 ## Example Design Calculations
 

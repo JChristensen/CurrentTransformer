@@ -8,13 +8,18 @@
 CT_Sensor::CT_Sensor(uint8_t channel, float ratio, float burden)
     : m_ratio(ratio), m_burden(burden)
 {
-    if (channel >= 14) channel -= 14;   // if user passed A0-A5, adjust accordingly
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+    if (channel >= 54) channel -= 54;   // if user passed pin number, convert to channel number
+    m_channel = channel & 0x0f;         // ruthlessly coerce to an acceptable value
+#else
+    if (channel >= 14) channel -= 14;   // if user passed pin number, convert to channel number
     m_channel = channel & 0x07;         // ruthlessly coerce to an acceptable value
+#endif
 }
 
-volatile bool CT_Control::adcBusy;
-volatile int CT_Control::adcVal;
-const uint16_t CT_Control::sampleSize(65);   // number of samples to cover one cycle
+volatile  bool CT_Control::adcBusy;
+volatile   int CT_Control::adcVal;
+const uint16_t CT_Control::sampleSize(65);  // number of samples to cover one cycle
 const uint16_t CT_Control::ADC_MAX(1023);
 const uint16_t CT_Control::OCR50(F_CPU / 50 / CT_Control::sampleSize / 2 - 1);
 const uint16_t CT_Control::OCR60(F_CPU / 60 / CT_Control::sampleSize / 2 - 1);
@@ -32,13 +37,17 @@ float CT_Control::begin()
     ADCSRA = _BV(ADEN) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);  // default adc configuration
     ADCSRB = 0;
     // set AVcc as reference, 1.1V bandgap reference voltage as input
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+    ADMUX = _BV(REFS0) | _BV(MUX4) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+#else
     ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+#endif
     delay(10);                              // Vref settling time
     ADCSRA |= _BV(ADSC);                    // start conversion
     loop_until_bit_is_clear(ADCSRA, ADSC);  // wait for it to complete
     int mv = 1125300L / ADC;                // calculate AVcc in mV (1.1 * 1000 * 1023)
     m_vcc = static_cast<float>(mv) / 1000.0;
-    
+
     // set up the timer
     TCCR1B = 0;                             // stop the timer
     TCCR1A = 0;
@@ -54,7 +63,7 @@ float CT_Control::begin()
     // set up the adc
     ADCSRA  = _BV(ADEN)  | _BV(ADATE) | _BV(ADIE);      // enable ADC, auto trigger, interrupt when conversion complete
     ADCSRA |= _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);     // ADC clock prescaler: divide by 128 (for 125kHz)
-    ADCSRB = _BV(ADTS2) | _BV(ADTS0);                   // trigger ADC on Timer/Counter1 Compare Match B    
+    ADCSRB = _BV(ADTS2) | _BV(ADTS0);                   // trigger ADC on Timer/Counter1 Compare Match B
 
     return m_vcc;
 }
@@ -73,32 +82,44 @@ void CT_Control::end()
 
 void CT_Control::read(CT_Sensor *ct0, CT_Sensor *ct1)
 {
-    uint8_t n(0);                       // sample count
-    int32_t sumsq0(0), sumsq1(0);       // sum of squares
-    ADMUX = _BV(REFS0) | ct0->m_channel; // set channel, and AVcc as reference
-    while (!adcBusy);                   // wait for one conversion
+    uint8_t n(0);                               // sample count
+    int32_t sumsq0(0), sumsq1(0);               // sum of squares
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+    if (ct0->m_channel > 7) {ADCSRB |= _BV(MUX5);}
+    else {ADCSRB &= !_BV(MUX5);}
+#endif
+    ADMUX = _BV(REFS0) | (ct0->m_channel & 0x07);   // set channel, and AVcc as reference
+    while (!adcBusy);                               // wait for one conversion
     while (adcBusy);
 
     do
     {
         // read ct0
-        ADMUX = _BV(REFS0) | ct0->m_channel;    // set channel, and AVcc as reference
-        while (!adcBusy);                       // wait for next conversion to start
-        while (adcBusy);                        // wait for conversion to complete
-        int32_t v0 = adcVal;                    // get the reading, promote to 32 bit
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+        if (ct0->m_channel > 7) {ADCSRB |= _BV(MUX5);}
+        else {ADCSRB &= !_BV(MUX5);}
+#endif
+        ADMUX = _BV(REFS0) | (ct0->m_channel & 0x07);   // set channel, and AVcc as reference
+        while (!adcBusy);                               // wait for next conversion to start
+        while (adcBusy);                                // wait for conversion to complete
+        int32_t v0 = adcVal;                            // get the reading, promote to 32 bit
 
         // read ct1
-        ADMUX = _BV(REFS0) | ct1->m_channel;    // set channel, and AVcc as reference
-        while (!adcBusy);                       // wait for next conversion to start
-        while (adcBusy);                        // wait for conversion to complete
-        int32_t v1 = adcVal;                    // get the reading, promote to 32 bit
+#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+        if (ct1->m_channel > 7) {ADCSRB |= _BV(MUX5);}
+        else {ADCSRB &= !_BV(MUX5);}
+#endif
+        ADMUX = _BV(REFS0) | (ct1->m_channel & 0x07);   // set channel, and AVcc as reference
+        while (!adcBusy);                               // wait for next conversion to start
+        while (adcBusy);                                // wait for conversion to complete
+        int32_t v1 = adcVal;                            // get the reading, promote to 32 bit
 
         // accumulate the sum of squares,
         // subtract 512 (half the adc range) to remove dc component
         sumsq0 += (v0 - ADC_MAX/2) * (v0 - ADC_MAX/2);
         sumsq1 += (v1 - ADC_MAX/2) * (v1 - ADC_MAX/2);
     } while (++n < sampleSize);
-    
+
     // calculate rms voltage and current
     float Vrms0 = m_vcc * sqrt(static_cast<float>(sumsq0) / static_cast<float>(sampleSize - 1)) / ADC_MAX;
     float Vrms1 = m_vcc * sqrt(static_cast<float>(sumsq1) / static_cast<float>(sampleSize - 1)) / ADC_MAX;
